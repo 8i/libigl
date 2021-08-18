@@ -162,21 +162,21 @@ IGL_INLINE void igl::direct_delta_mush_precomputation(
       D_L(i) = 1 / D_L(i);
     }
   }
-  SparseMatrix<Scalar> D_L_inv = D_L.asDiagonal().toDenseMatrix().sparseView();
-  SparseMatrix<Scalar> L_bar = L * D_L_inv;
+  //SparseMatrix<Scalar> D_L_inv = D_L.asDiagonal().toDenseMatrix().sparseView();
+  SparseMatrix<Scalar> L_bar = L * D_L.asDiagonal();
 
   // Implicitly and iteratively solve for W'
   // w'_{ij} = \sum_{k=1}^{n}{C_{ki} w_{kj}}      where C = (I + kappa L_bar)^{-p}:
   // W' = C^T \times W  =>  c^T W_k = W_{k-1}     where c = (I + kappa L_bar)
   // C positive semi-definite => ldlt solver
-  SimplicialLDLT<SparseMatrix<Scalar>> ldlt_W_prime;
+  SparseLU<SparseMatrix<Scalar>> lu_W_prime;
   SparseMatrix<Scalar> c(I + kappa * L_bar);
   // working copy
   DerivedW W_prime(W);
-  ldlt_W_prime.compute(c.transpose());
+  lu_W_prime.compute(c.transpose());
   for (int iter = 0; iter < p; ++iter)
   {
-    W_prime = ldlt_W_prime.solve(W_prime);
+    W_prime = lu_W_prime.solve(W_prime);
   }
 
   // U_precomputed: #V by 10
@@ -212,13 +212,13 @@ IGL_INLINE void igl::direct_delta_mush_precomputation(
   //   Psi = b.ldlt().solve(Psi);  // hangs here
   // }
   // Convert to sparse matrices and compute
-  Matrix<Scalar, Dynamic, Dynamic> Psi = U_prime.sparseView();
+  Matrix<Scalar, Dynamic, Dynamic> Psi = U_prime;
   SparseMatrix<Scalar> b = (I + lambda * L_bar).transpose();
-  SimplicialLDLT<SparseMatrix<Scalar>> ldlt_Psi;
-  ldlt_Psi.compute(b);
+  SparseLU<SparseMatrix<Scalar>> lu_Psi;
+  lu_Psi.compute(b);
   for (int iter = 0; iter < p; ++iter)
   {
-    Psi = ldlt_Psi.solve(Psi);
+    Psi = lu_Psi.solve(Psi);
   }
 
   // P: #V by 10 precomputed upper triangle of
